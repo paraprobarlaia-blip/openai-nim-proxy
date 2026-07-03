@@ -31,7 +31,8 @@ const MODEL_MAPPING = {
   'minimaxai/minimax-m3': 'minimaxai/minimax-m3',                          // multimodal MoE, reasoning + tool calling
   'minimaxai/minimax-m2.7': 'minimaxai/minimax-m2.7',                      // 230B, reasoning/coding de alto nivel
   'mistralai/mistral-medium-3.5-128b': 'mistralai/mistral-medium-3.5-128b', // buen balance calidad/velocidad
-  'stepfun-ai/step-3.7-flash': 'stepfun-ai/step-3.7-flash'                 // MoE multimodal, agentic/coding
+  'stepfun-ai/step-3.7-flash': 'stepfun-ai/step-3.7-flash',                // MoE multimodal, agentic/coding
+  'google/gemma-4-31b-it': 'google/gemma-4-31b-it'                         // denso 31B, reasoning frontera, Apache 2.0
 };
 
 // Modelos "thinking" que requieren manejo especial (para referencia si activas ENABLE_THINKING_MODE)
@@ -115,7 +116,8 @@ app.post('/v1/chat/completions', async (req, res) => {
         'Authorization': `Bearer ${NIM_API_KEY}`,
         'Content-Type': 'application/json'
       },
-      responseType: stream ? 'stream' : 'json'
+      responseType: stream ? 'stream' : 'json',
+      timeout: 60000 // 60s - evita que la request se cuelgue indefinidamente y termine en 504
     });
     
     if (stream) {
@@ -223,12 +225,18 @@ app.post('/v1/chat/completions', async (req, res) => {
     
   } catch (error) {
     console.error('Proxy error:', error.message);
-    
-    res.status(error.response?.status || 500).json({
+
+    const isTimeout = error.code === 'ECONNABORTED';
+    const status = isTimeout ? 504 : (error.response?.status || 500);
+    const message = isTimeout
+      ? 'NVIDIA NIM tardó demasiado en responder (timeout de 60s). Probá con otro modelo o reintentá.'
+      : (error.response?.data?.error?.message || error.message || 'Internal server error');
+
+    res.status(status).json({
       error: {
-        message: error.message || 'Internal server error',
+        message,
         type: 'invalid_request_error',
-        code: error.response?.status || 500
+        code: status
       }
     });
   }
