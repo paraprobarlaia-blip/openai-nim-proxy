@@ -117,7 +117,7 @@ app.post('/v1/chat/completions', async (req, res) => {
         'Content-Type': 'application/json'
       },
       responseType: stream ? 'stream' : 'json',
-      timeout: 60000 // 60s - evita que la request se cuelgue indefinidamente y termine en 504
+      timeout: 120000 // 120s - más margen para modelos con razonamiento o el endpoint gratuito bajo carga
     });
     
     if (stream) {
@@ -229,7 +229,7 @@ app.post('/v1/chat/completions', async (req, res) => {
     const isTimeout = error.code === 'ECONNABORTED';
     const status = isTimeout ? 504 : (error.response?.status || 500);
     const message = isTimeout
-      ? 'NVIDIA NIM tardó demasiado en responder (timeout de 60s). Probá con otro modelo o reintentá.'
+      ? 'NVIDIA NIM tardó demasiado en responder (timeout de 120s). Probá con otro modelo o reintentá.'
       : (error.response?.data?.error?.message || error.message || 'Internal server error');
 
     res.status(status).json({
